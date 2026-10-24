@@ -1,40 +1,97 @@
+
 import time
 import numpy as np
 from mbot_bridge.api import MBot
 
 
-def drive_to_pose(goal_x, goal_y, goal_theta, robot):
-    """TODO: (P2.1) Implement your code to drive to the goal pose,
-    [goal_x, goal_y, goal_theta].
+def normalize_angle(angle):
+    return np.arctan2(np.sin(angle), np.cos(angle))
 
-    HINT: Use robot.read_odometry() to get a list of length 3 containing the
-    robot's odometry [x, y, theta]. The odometry frame is the pose the robot
-    is in at the start of this script."""
-    pass
+
+def drive_to_pose(goal_x, goal_y, goal_theta, robot):
+    """Drive the robot to [goal_x, goal_y, goal_theta]."""
+
+    position_tolerance = 0.05
+    angle_tolerance = 0.05
+
+    linear_speed = 0.15
+    angular_speed = 0.5
+
+    while True:
+        # Read current position
+        x, y, theta = robot.read_odometry()
+
+        # Calculate distance to goal
+        dx = goal_x - x
+        dy = goal_y - y
+
+        distance = np.sqrt(dx**2 + dy**2)
+
+        # Stop moving forward when close enough
+        if distance < position_tolerance:
+            break
+
+        # Calculate angle toward goal
+        target_angle = np.arctan2(dy, dx)
+        angle_error = normalize_angle(target_angle - theta)
+
+        # Turn toward goal first
+        if abs(angle_error) > angle_tolerance:
+            robot.drive(
+                0.0,
+                0.0,
+                angular_speed * np.sign(angle_error)
+            )
+        else:
+            # Move forward
+            robot.drive(linear_speed, 0.0, 0.0)
+
+        time.sleep(0.1)
+
+    # Stop before final rotation
+    robot.stop()
+
+    # Rotate to goal orientation
+    while True:
+        x, y, theta = robot.read_odometry()
+
+        angle_error = normalize_angle(goal_theta - theta)
+
+        if abs(angle_error) < angle_tolerance:
+            break
+
+        robot.drive(
+            0.0,
+            0.0,
+            angular_speed * np.sign(angle_error)
+        )
+
+        time.sleep(0.1)
+
+    robot.stop()
 
 
 robot = MBot()
-# TODO: Declare any other variables you might need here.
 
-# Reset the robot odometry to zero at the beginning of the run.
+# Reset odometry
 robot.reset_odometry()
 
-"""
-TODO: (P2.1) Call your function drive_to_pose() to drive to a sequence of
-goal points.
+try:
+    # P2.1: Drive to a sequence of goal poses
+    drive_to_pose(1, 0, 0, robot)
+    time.sleep(1)
 
-HINT: If you want your robot to stop for a while after reaching a goal,
-you might find the function time.sleep(secs) useful.
+    drive_to_pose(1, 1, np.pi / 2, robot)
+    time.sleep(1)
 
-HINT: You should use the drive_to_pose() function you will write, passing
-it the target x, y and theta, and the robot object. For example, to go
-to position (2, 3) with angle 0, do:
+    drive_to_pose(0, 1, np.pi, robot)
+    time.sleep(1)
 
-  drive_to_pose(2, 3, 0, robot);
+    drive_to_pose(0, 0, 0, robot)
 
-"""
+finally:
+    # Stop robot before exiting
+    robot.stop()
 
-# Stop the robot before exiting.
-robot.stop()
-
-# TODO: Print out the robot's final odometry before exiting.
+    # Print final odometry
+    print("Final odometry:", robot.read_odometry())
