@@ -73,8 +73,6 @@ def drive_to_pose(goal_x, goal_y, goal_theta, robot):
 
 robot = MBot()
 
-# Reset odometry
-robot.reset_odometry()
 
 try:
     # P2.1: Drive to a sequence of goal poses
