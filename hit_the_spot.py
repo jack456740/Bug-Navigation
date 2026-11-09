@@ -17,14 +17,20 @@ def drive_to_pose(goal_x, goal_y, goal_theta, robot):
     linear_speed = 0.15
     angular_speed = 0.5
 
+    # Timeout for reaching the goal position
+    start_time = time.monotonic()
+
     while True:
+        if time.monotonic() - start_time > 60:
+            robot.stop()
+            raise TimeoutError("Failed to reach goal position")
+
         # Read current position
         x, y, theta = robot.read_odometry()
 
         # Calculate distance to goal
         dx = goal_x - x
         dy = goal_y - y
-
         distance = np.sqrt(dx**2 + dy**2)
 
         # Stop moving forward when close enough
@@ -52,9 +58,14 @@ def drive_to_pose(goal_x, goal_y, goal_theta, robot):
     robot.stop()
 
     # Rotate to goal orientation
-    while True:
-        x, y, theta = robot.read_odometry()
+    rotation_start_time = time.monotonic()
 
+    while True:
+        if time.monotonic() - rotation_start_time > 30:
+            robot.stop()
+            raise TimeoutError("Failed to reach goal orientation")
+
+        x, y, theta = robot.read_odometry()
         angle_error = normalize_angle(goal_theta - theta)
 
         if abs(angle_error) < angle_tolerance:
@@ -70,11 +81,22 @@ def drive_to_pose(goal_x, goal_y, goal_theta, robot):
 
     robot.stop()
 
+    # Report final position and orientation errors
+    x, y, theta = robot.read_odometry()
+
+    position_error = np.hypot(goal_x - x, goal_y - y)
+    orientation_error = abs(normalize_angle(goal_theta - theta))
+
+    print("Position error:", position_error, "meters")
+    print("Orientation error:", orientation_error, "radians")
+
 
 robot = MBot()
 
-
 try:
+    # Reset odometry before beginning
+    robot.reset_odometry()
+
     # P2.1: Drive to a sequence of goal poses
     drive_to_pose(1, 0, 0, robot)
     time.sleep(1)
@@ -93,3 +115,5 @@ finally:
 
     # Print final odometry
     print("Final odometry:", robot.read_odometry())
+
+
